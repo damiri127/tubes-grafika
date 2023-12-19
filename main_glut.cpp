@@ -132,43 +132,7 @@ void display() {
     glutSwapBuffers();
 }
 
-
-// update posisi bulan
-/*void updateMoon(int value) {
-    if (totalTime >= 40.0f) {
-        moonSpeed = 0.01f; // Setel kembali kecepatan bulan setelah gerhana selesai
-    } else {
-        if (!isMoonStopped) {
-            moonX += moonSpeed; // Biarkan bulan terus bergerak
-        }
-
-        // Setelah bulan mencapai tengah matahari, berhenti
-        if (moonX >= -0.5f && moonX <= -0.2f && !isMoonStopped) {
-            isMoonStopped = true;
-            moonSpeed = 0.0f; // Hentikan bulan saat berada di tengah matahari
-        }
-
-        // Reset posisi bulan setelah 5 detik berhenti
-        if (isMoonStopped) {
-           elapsedStopTime = totalTime - stopStartTime;
-            if (elapsedStopTime >= stopTime) {
-                isMoonStopped = false;
-                moonSpeed = 0.01f; // Setel kembali kecepatan bulan setelah berhenti
-            }
-        }
-    }
-
-    // Hentikan bulan ketika mencapai ujung window
-    if (moonX + moonRadius >= 1.0f) {
-        moonSpeed = 0.0f;
-    }
-
-    totalTime += 0.1f; // Menggunakan interval 0.1 detik
-
-    glutPostRedisplay();
-    glutTimerFunc(100, updateMoon, 0);
-}*/
-
+//update posisi bulan
 void updateMoon(int value) {
     if (totalTime >= 40.0f) {
         moonSpeed = 0.01f; // Setel kembali kecepatan bulan setelah gerhana selesai
