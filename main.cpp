@@ -1,202 +1,382 @@
-#include <GL/freeglut.h>
+#include <GL/glut.h>
+#include <windows.h>
 #include <cmath>
+#include <iostream>
+#include <vector>
 
-// untuk kontrol pergerakan bulan
-float moonX = -1.0f;
-float moonY = 0.5f;
-float moonRadius = 0.15f;
-float moonSpeed = 0.01f;
-float totalTime = 0.0f;
-float stopTime = 5.0f; // Waktu berhenti (dalam detik)
-bool isMoonStopped = false; // penanda apakah bulan sedang berhenti
+int lebarWindow = 800;
+int tinggiWindow = 600;
+float posisiBulanX = -200.0f;
+bool sedangGerhana = false;
+float insesitasEfekGerhana = 0.0f;
+float insesitasBulan = 0.0f;
 
+GLfloat road_ambient[] = {.5, .5, .5, .1};
+GLfloat ground_ambient[] = {.7, .7, .8, .1};
+GLfloat path_ambient[] = {3.5, 3.5, 3.5, .1};
+GLfloat doorFront_ambient[] = {4, 4, 4, .1};
+GLfloat grass_ambient[] = {.5, 3, .5, .1};
 
-float stopStartTime = 0.0f; // Waktu dimulainya berhenti
-float elapsedStopTime = 0.0f; // Waktu yang sudah berlalu ketika bulan berhenti
+GLfloat doorRot = 0;
+GLfloat doorRot2 = 0;
+GLfloat schoolDoorRot = 0;
 
-    // Menggambar stickman (orang)
-void drawStickman() {
-    glColor3f(0.0f, 0.0f, 0.0f); // Warna hitam
-    // Kepala
-    float headRadius = 0.05f;
-    glBegin(GL_POLYGON);
-    for (int i = 0; i < 360; i++) {
-        float theta = 2.0f * M_PI * i / 360.0f;
-        float x = 0.7f + headRadius * cos(theta);
-        float y = -0.7f + headRadius * sin(theta);
-        glVertex2f(x, y);
-    }
-    glEnd();
+struct Awan
+{
+    float x;
+    float y;
+};
 
-    // Tubuh (garis)
-    glBegin(GL_LINES);
-    glVertex2f(0.7f, -0.7f + headRadius); // Ujung atas tubuh
-    glVertex2f(0.7f, -0.9f); // Ujung bawah tubuh
-    glEnd();
+std::vector<Awan> posisiAwan;
 
-    // Tangan kiri (garis)
-    glBegin(GL_LINES);
-    glVertex2f(0.7f, -0.8f); // Pangkal tangan
-    glVertex2f(0.6f, -0.8f); // Ujung tangan
-    glEnd();
+const int terrainSize = 120;
+float terrain[terrainSize][terrainSize];
 
-    // Tangan kanan (garis)
-    glBegin(GL_LINES);
-    glVertex2f(0.7f, -0.8f); // Pangkal tangan
-    glVertex2f(0.8f, -0.8f); // Ujung tangan
-    glEnd();
-
-    // Kaki kiri (garis)
-    glBegin(GL_LINES);
-    glVertex2f(0.7f, -0.9f); // Pangkal kaki
-    glVertex2f(0.6f, -1.0f); // Ujung kaki
-    glEnd();
-
-    // Kaki kanan (garis)
-    glBegin(GL_LINES);
-    glVertex2f(0.7f, -0.9f); // Pangkal kaki
-    glVertex2f(0.8f, -1.0f); // Ujung kaki
-    glEnd();
-}
-//menggambar/render objek
-void drawObjects() {
-    // Menggambar matahari
-    glColor4f(1.0f, 1.0f, 0.0f, 0.0f); // Warna kuning
-    glBegin(GL_POLYGON);
-    for (int i = 0; i < 360; i++) {
-        float theta = 2.0f * M_PI * i / 360.0f;
-        float x = -0.5f + 0.3f * cos(theta); // Letakkan matahari di sisi kiri
-        float y = 0.5f + 0.3f * sin(theta);
-        glVertex2f(x, y);
-    }
-
-    glEnd();
-
-    // Menggambar bulan
-    glColor3f(0.5f, 0.5f, 0.5f); // Warna abu-abu
-    glBegin(GL_POLYGON);
-    for (int i = 0; i < 360; i++) {
-        float theta = 2.0f * M_PI * i / 360.0f;
-        float x = moonX + moonRadius * cos(theta);
-        float y = moonY + moonRadius * sin(theta);
-        glVertex2f(x, y);
-    }
-    glEnd();
-
-    //render stickman
-    drawStickman();
+long map(float x, float in_min, float in_max, float out_min, float out_max) 
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-//bikin langit
-void drawSky() {
-    // Warna langit berubah segera saat bulan berada di tengah matahari
-    glColor3f(0.0f, 0.5f, 1.0f);
-    if (moonX >= -0.5f && moonX <= -0.2f) {
-        glColor3f(0.0f, 0.0f, 0.2f); // Warna biru gelap saat bulan berada di tengah matahari
+void circle(float cx, float cy, float r, int num_segments)
+{
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(0.0, 0.0);
+    for (int i = 0; i <= num_segments; i++)
+    {
+        float theta = 2.0f * M_PI * float(i) / float(num_segments);
+        float x = r * cosf(theta);
+        float y = r * sinf(theta);
+        glVertex2f(x + cx, y + cy);
     }
+    glEnd();
+}
+
+void generateTerrain()
+{
+    for (int i = 0; i < terrainSize; ++i)
+    {
+        for (int j = 0; j < terrainSize; ++j)
+        {
+            terrain[i][j] = static_cast<float>(rand() % 100) / 100.0f;
+        }
+    }
+}
+
+void gambarTerrain()
+{
+    glColor3f(0.3f - (insesitasEfekGerhana * 2.0f), 1.0f - (insesitasEfekGerhana * 2.0f), 0.3f - (insesitasEfekGerhana * 2.0f)); // Warna terrain (hijau)
 
     glBegin(GL_QUADS);
-    glVertex2f(-1.0f, 1.0f);
-    glVertex2f(1.0f, 1.0f);
-    glVertex2f(1.0f, -1.0f);
-    glVertex2f(-1.0f, -1.0f);
+
+    for (int i = 0; i < terrainSize - 1; ++i)
+    {
+        for (int j = 0; j < terrainSize - 1; ++j)
+        {
+            glVertex3f(i, j, terrain[i][j]);
+            glVertex3f(i + 1, j, terrain[i + 1][j]);
+            glVertex3f(i + 1, j + 1, terrain[i + 1][j + 1]);
+            glVertex3f(i, j + 1, terrain[i][j + 1]);
+        }
+    }
     glEnd();
 }
 
-// tombol "Restart Game"
-// FIXME: bulannya gak mau jalan kalo pencet tombol ini
-void drawRestartButton() {
-    glColor3f(0.0f, 1.0f, 0.0f); // Warna hijau
+void background()
+{
     glBegin(GL_QUADS);
-    glVertex2f(-1.0f, -1.0f); // Pojok kiri bawah
-    glVertex2f(-0.8f, -1.0f); // Pojok kanan bawah
-    glVertex2f(-0.8f, -0.9f); // Pojok kanan atas
-    glVertex2f(-1.0f, -0.9f); // Pojok kiri atas
+    glColor3f(0.53f - (insesitasEfekGerhana * 2.0f), 0.81f - (insesitasEfekGerhana * 2.0f), 0.98f - (insesitasEfekGerhana * 2.0f));
+    glVertex2f(0, tinggiWindow);
+    glVertex2f(lebarWindow, tinggiWindow);
+    glColor3f(0.0f, 0.0f, 0.0f);
+    glVertex2f(lebarWindow, 0);
+    glVertex2f(0, 0);
     glEnd();
-
-    glColor3f(0.0f, 0.0f, 0.0f); // Warna hitam
-    glRasterPos2f(-0.95f, -0.95f); // Posisi teks
-    glutBitmapString(GLUT_BITMAP_HELVETICA_10, (const unsigned char *)"Restart Game");
 }
 
+void rembulan()
+{
+    glPushMatrix();
+    glTranslatef(150 + posisiBulanX, tinggiWindow - 150, 0.0f);
+    glColor4f(0.0f, 0.0f, 0.0f, insesitasBulan);
+    glVertex2f(0, 0);
+    circle(0, 0, 50.0f, 100);
+    glPopMatrix();
+}
 
-// untuk merender tampilan
-void display() {
+void matahari()
+{
+    glPushMatrix();
+    glTranslatef(150, tinggiWindow - 150, 0.0f);
+    glColor3f(1.0f, 0.8f, 0.0f);
+    circle(0, 0, 50.0f, 100);
+    glPopMatrix();
+}
+
+void corona()
+{
+    glPushMatrix();
+    glTranslatef(150, tinggiWindow - 150, 0.0f);
+
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 55.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 60.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 65.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 70.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 75.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 80.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 85.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 90.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 95.0f, 100);
+    glColor4f(1.0f, 0.8f, 0.0f, 0.1f - (insesitasEfekGerhana / 4.0f));
+    circle(0, 0, 100.0f, 100);
+
+    glPopMatrix();
+}
+
+void awan()
+{
+    for (const auto &posisi : posisiAwan)
+    {
+        glPushMatrix();
+        glTranslatef(posisi.x, posisi.y, 0.0f);
+
+        glColor4f(1.0f - (insesitasEfekGerhana * 1.5f), 1.0f - (insesitasEfekGerhana * 1.5f), 1.0f - (insesitasEfekGerhana * 1.5f), 1.0f);
+        circle(0, 0, 30.0f, 100);
+
+        glTranslatef(40.0f, 0.0f, 0.0f);
+        circle(0, 0, 30.0f, 100);
+
+        glTranslatef(40.0f, 0.0f, 0.0f);
+        circle(0, 0, 30.0f, 100);
+
+        glTranslatef(40.0f, 0.0f, 0.0f);
+        circle(0, 0, 30.0f, 100);
+
+        glPopMatrix();
+    }
+}
+
+void star()
+{
+    glPushMatrix();
+
+    glColor4f(1.0f, 1.0f, 1.0f, insesitasEfekGerhana);
+    glTranslatef(200, 350, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, -100, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, 130, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, 150, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, -200, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, 50, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, 70, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, 20, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, -100, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(50, -20, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(20, 90, 0.0f);
+    circle(0, 0, 1.0f, 100);
+    glTranslatef(30, -10, 0.0f);
+    circle(0, 0, 1.0f, 100);
+
+    glPopMatrix();
+}
+
+// void rumah()
+// {
+//     glPushMatrix();
+
+//     glTranslatef(200, 350, 0.0f);
+
+//     // house
+//     glColor3f(0.0, 0.2, 0.2);
+//     glBegin(GL_POLYGON);
+//     glVertex2f(600, 375);
+//     glVertex2f(600, 450);
+//     glVertex2f(650, 525);
+//     glVertex2f(700, 450);
+//     glVertex2f(700, 375);
+//     glEnd();
+
+//     // door
+//     glColor3f(0.5, 0.0, 0.0);
+//     glBegin(GL_POLYGON);
+//     glVertex2f(640, 375);
+//     glVertex2f(640, 430);
+//     glVertex2f(660, 430);
+//     glVertex2f(660, 375);
+//     glEnd();
+
+//     // roof
+//     glColor3f(0.5, 0.0, 0.0);
+//     glBegin(GL_POLYGON);
+//     glVertex2f(700, 450);
+//     glVertex2f(650, 525);
+//     glVertex2f(850, 525);
+//     glVertex2f(900, 450);
+//     glEnd();
+
+//     glLineWidth(4.0);
+//     glBegin(GL_LINES);
+//     glVertex2f(650, 525);
+//     glVertex2f(600, 450);
+//     glEnd();
+
+//     // door wall
+//     glColor3f(0.8, 0.8, 0.2);
+//     glBegin(GL_POLYGON);
+//     glVertex2f(700, 375);
+//     glVertex2f(700, 450);
+//     glVertex2f(890, 450);
+//     glVertex2f(890, 375);
+//     glEnd();
+
+//     glColor3f(0.5, 0.0, 0.0);
+//     glBegin(GL_POLYGON);
+//     glVertex2f(810, 400);
+//     glVertex2f(810, 420);
+//     glVertex2f(840, 420);
+//     glVertex2f(840, 400);
+//     glEnd();
+
+//     glPopMatrix();
+// }
+
+void update(int value)
+{
+    posisiBulanX += 1.0f;
+
+    // std::cout << posisiBulanX << "\n";
+
+    if (posisiBulanX > 200.0f)
+    {
+        posisiBulanX = -200.0f; // reset posisi matahari
+        sedangGerhana = !sedangGerhana;
+        insesitasBulan = 1.0f;
+    }
+    else if (posisiBulanX >= 1.0f && posisiBulanX <= 100.0f)
+    {
+        insesitasEfekGerhana -= 0.0045f; // efek gerhana menghilang ketika bulan meninggalkan area matahari
+    }
+    else if ((posisiBulanX >= -100.0f && posisiBulanX < 1.0f) && sedangGerhana)
+    {
+        insesitasEfekGerhana += 0.0045f; // efek jika bulan sudah memasuki area matahari
+    }
+    else if(posisiBulanX > 100.0f && posisiBulanX <= 200.0f)
+    {
+        insesitasBulan -= 0.03f;
+    }
+
+    insesitasEfekGerhana = std::max(0.0f, std::min(insesitasEfekGerhana, 0.5f));
+
+    for (auto &posisi : posisiAwan)
+    {
+        posisi.x += 0.5f;
+        if (posisi.x > lebarWindow + 30)
+        {
+            posisi.x = -100.0f;
+        }
+    }
+
+    glutPostRedisplay();
+    glutTimerFunc(30, update, 0); // atur FPS
+}
+
+void display()
+{
     glClear(GL_COLOR_BUFFER_BIT);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
     glLoadIdentity();
 
-    drawSky();
-    drawObjects();
-    drawRestartButton();
+    background();
+    star();
+    corona();
+    matahari();
+    if (sedangGerhana)
+        rembulan();
+    awan();
 
+    glTranslatef(0, 0, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    glTranslatef(50, 00, 0.0f);
+    gambarTerrain();
+    
     glutSwapBuffers();
 }
 
-//update posisi bulan
-void updateMoon(int value) {
-    if (totalTime >= 40.0f) {
-        moonSpeed = 0.01f; // Setel kembali kecepatan bulan setelah gerhana selesai
-    } else {
-        if (!isMoonStopped) {
-            moonX += moonSpeed; // Biarkan bulan terus bergerak
-        }
+void reshape(int w, int h)
+{
+    lebarWindow = w;
+    tinggiWindow = h;
 
-        // Setelah bulan mencapai tengah matahari, berhenti
-        if (moonX >= -0.5f && moonX <= -0.2f && !isMoonStopped) {
-            isMoonStopped = true;
-            moonSpeed = 0.0f; // Hentikan bulan saat berada di tengah matahari
-        }
-
-        // Reset posisi bulan setelah 5 detik berhenti
-        if (isMoonStopped) {
-            elapsedStopTime = totalTime - stopStartTime;
-            if (elapsedStopTime >= stopTime) {
-                isMoonStopped = false;
-                moonSpeed = 0.01f; // Setel kembali kecepatan bulan setelah berhenti
-            }
-        }
-    }
-
-    totalTime += 0.1f; // Menggunakan interval 0.1 detik
-
-    glutPostRedisplay();
-    glutTimerFunc(100, updateMoon, 0);
+    glViewport(0, 0, w, h);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0, w, 0, h);
+    glMatrixMode(GL_MODELVIEW);
 }
 
-void mouse(int button, int state, int x, int y) {
-    // Koordinat layar ke koordinat window OpenGL
-    float winX = (float)x / glutGet(GLUT_WINDOW_WIDTH) * 2 - 1;
-    float winY = 1 - (float)y / glutGet(GLUT_WINDOW_HEIGHT) * 2;
+int main(int argc, char **argv)
+{
+    posisiAwan.push_back({-50.0f, tinggiWindow - 50.0f});
+    posisiAwan.push_back({-150.0f, tinggiWindow - 200.0f});
+    posisiAwan.push_back({-300.0f, tinggiWindow - 100.0f});
+    posisiAwan.push_back({-450.0f, tinggiWindow - 250.0f});
+    posisiAwan.push_back({-150.0f, tinggiWindow - 220.0f});
 
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        // Tombol kiri ditekan
-        if (winX >= -1.0f && winX <= -0.8f && winY >= -1.0f && winY <= -0.9f) {
-            // Klik pada tombol "Restart Game"
-            moonX = -1.0f;
-            isMoonStopped = false;
-            totalTime = 0.0f;
-            stopStartTime = 0.0f; // Inisialisasi ulang waktu berhenti
-            elapsedStopTime = 0.0f; // Inisialisasi ulang waktu yang sudah berlalu ketika bulan berhenti
-            // initialMoonSpeed = 0.01f; // Inisialisasi ulang kecepatan awal bulan
-            moonSpeed = 0.1f; // Setel kembali kecepatan awal bulan
-            glutTimerFunc(0, updateMoon, 0);
-        }
-    }
-}
-
-int main(int argc, char** argv) {
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(800, 600);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
+    glutInitWindowSize(lebarWindow, tinggiWindow);
+    glutCreateWindow("Animation vs Solar Eclipse");
 
-    glutCreateWindow("Gerhana Matahari");
-    gluOrtho2D(-1.0, 1.0, -1.0, 1.0);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    gluOrtho2D(0, terrainSize, 0, terrainSize);
+    generateTerrain();
 
     glutDisplayFunc(display);
-    glutTimerFunc(0, updateMoon, 0);
-    glutMouseFunc(mouse);
-
+    glutReshapeFunc(reshape);
+    glutTimerFunc(0, update, 0);
     glutMainLoop();
     return 0;
 }
