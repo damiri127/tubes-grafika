@@ -3,6 +3,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <string>
+#include <wingdi.h>
 
 int lebarWindow = 800;
 int tinggiWindow = 600;
@@ -10,6 +12,11 @@ float posisiBulanX = -200.0f;
 bool sedangGerhana = false;
 float insesitasEfekGerhana = 0.0f;
 float insesitasBulan = 0.0f;
+using  namespace std;
+
+int i, s, m, y;
+string ins[2] = { "Disini kita akan melakukan simulasi gerhana matahari", ""};
+string t;
 
 GLfloat road_ambient[] = {.5, .5, .5, .1};
 GLfloat ground_ambient[] = {.7, .7, .8, .1};
@@ -31,6 +38,28 @@ std::vector<Awan> posisiAwan;
 
 const int terrainSize = 120;
 float terrain[terrainSize][terrainSize];
+
+void text()
+{
+	m = 0;
+	y = 500;
+	s = 15;
+    
+    glTranslatef(-710, -300, 0.0f);
+
+	while (m < 5)
+	{
+		t = ins[m];
+		for (i = 0; i < t.length(); i++)
+		{
+			glColor3f(1,1,1);
+			glRasterPos2i((i * s) + 20, y);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, t.at(i));
+		}
+		m++;
+		y = y - 30;
+	}
+}
 
 long map(float x, float in_min, float in_max, float out_min, float out_max) 
 {
@@ -87,7 +116,7 @@ void background()
     glColor3f(0.53f - (insesitasEfekGerhana * 2.0f), 0.81f - (insesitasEfekGerhana * 2.0f), 0.98f - (insesitasEfekGerhana * 2.0f));
     glVertex2f(0, tinggiWindow);
     glVertex2f(lebarWindow, tinggiWindow);
-    glColor3f(0.0f, 0.0f, 0.0f);
+    glColor3f(0.2f, 0.2f, 0.2f);
     glVertex2f(lebarWindow, 0);
     glVertex2f(0, 0);
     glEnd();
@@ -148,7 +177,7 @@ void awan()
         glPushMatrix();
         glTranslatef(posisi.x, posisi.y, 0.0f);
 
-        glColor4f(1.0f - (insesitasEfekGerhana * 1.5f), 1.0f - (insesitasEfekGerhana * 1.5f), 1.0f - (insesitasEfekGerhana * 1.5f), 1.0f);
+        glColor4f(1.0f - (insesitasEfekGerhana * 2.0f), 1.0f - (insesitasEfekGerhana * 2.0f), 1.0f - (insesitasEfekGerhana * 2.0f), 1.0f);
         circle(0, 0, 30.0f, 100);
 
         glTranslatef(40.0f, 0.0f, 0.0f);
@@ -197,65 +226,6 @@ void star()
     glPopMatrix();
 }
 
-// void rumah()
-// {
-//     glPushMatrix();
-
-//     glTranslatef(200, 350, 0.0f);
-
-//     // house
-//     glColor3f(0.0, 0.2, 0.2);
-//     glBegin(GL_POLYGON);
-//     glVertex2f(600, 375);
-//     glVertex2f(600, 450);
-//     glVertex2f(650, 525);
-//     glVertex2f(700, 450);
-//     glVertex2f(700, 375);
-//     glEnd();
-
-//     // door
-//     glColor3f(0.5, 0.0, 0.0);
-//     glBegin(GL_POLYGON);
-//     glVertex2f(640, 375);
-//     glVertex2f(640, 430);
-//     glVertex2f(660, 430);
-//     glVertex2f(660, 375);
-//     glEnd();
-
-//     // roof
-//     glColor3f(0.5, 0.0, 0.0);
-//     glBegin(GL_POLYGON);
-//     glVertex2f(700, 450);
-//     glVertex2f(650, 525);
-//     glVertex2f(850, 525);
-//     glVertex2f(900, 450);
-//     glEnd();
-
-//     glLineWidth(4.0);
-//     glBegin(GL_LINES);
-//     glVertex2f(650, 525);
-//     glVertex2f(600, 450);
-//     glEnd();
-
-//     // door wall
-//     glColor3f(0.8, 0.8, 0.2);
-//     glBegin(GL_POLYGON);
-//     glVertex2f(700, 375);
-//     glVertex2f(700, 450);
-//     glVertex2f(890, 450);
-//     glVertex2f(890, 375);
-//     glEnd();
-
-//     glColor3f(0.5, 0.0, 0.0);
-//     glBegin(GL_POLYGON);
-//     glVertex2f(810, 400);
-//     glVertex2f(810, 420);
-//     glVertex2f(840, 420);
-//     glVertex2f(840, 400);
-//     glEnd();
-
-//     glPopMatrix();
-// }
 
 void update(int value)
 {
@@ -279,7 +249,7 @@ void update(int value)
     }
     else if(posisiBulanX > 100.0f && posisiBulanX <= 200.0f)
     {
-        insesitasBulan -= 0.03f;
+        insesitasBulan -= 0.04f;
     }
 
     insesitasEfekGerhana = std::max(0.0f, std::min(insesitasEfekGerhana, 0.5f));
@@ -294,7 +264,7 @@ void update(int value)
     }
 
     glutPostRedisplay();
-    glutTimerFunc(30, update, 0); // atur FPS
+    glutTimerFunc(60, update, 0); // atur FPS
 }
 
 void display()
@@ -343,6 +313,8 @@ void display()
     glTranslatef(50, 00, 0.0f);
     gambarTerrain();
     
+    text();
+
     glutSwapBuffers();
 }
 
